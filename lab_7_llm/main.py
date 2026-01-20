@@ -35,7 +35,9 @@ class RawDataImporter(AbstractRawDataImporter):
             TypeError: In case of downloaded dataset is not pd.DataFrame
         """
         self._raw_data = load_dataset(
-            self._hf_name, "seara/ru_go_emotions", name="simplified", split="validation"
+            self._hf_name,
+            name="simplified",
+            split="validation"
         ).to_pandas()
 
         if not isinstance(self._raw_data, pd.DataFrame):
@@ -54,13 +56,16 @@ class RawDataPreprocessor(AbstractRawDataPreprocessor):
         Returns:
             dict: Dataset key properties
         """
+        df_copy = self._raw_data.copy()
+        df_copy["labels"] = df_copy["labels"].apply(tuple)
+
         return {
            "dataset_number_of_samples": len(self._raw_data),
             "dataset_columns": len(self._raw_data.columns),
-            "dataset_duplicates": self._raw_data.duplicated().sum(),
+            "dataset_duplicates": df_copy.duplicated().sum(),
             "dataset_empty_rows": self._raw_data.isna().any(axis=1).sum(),
-            "dataset_sample_min_len": min(len(str(row)) for row in self._raw_data['source']),
-            "dataset_sample_max_len": max(len(str(row)) for row in self._raw_data['source'])
+            "dataset_sample_min_len": min(len(str(row)) for row in self._raw_data['ru_text']),
+            "dataset_sample_max_len": max(len(str(row)) for row in self._raw_data['ru_text'])
         }
 
     @report_time
@@ -92,7 +97,7 @@ class RawDataPreprocessor(AbstractRawDataPreprocessor):
             3: 2,
             4: 3,
             6: 4,
-            5: 5
+            7: 5
         }[x]
         )
         self._data['source'] = self._data['source'].apply(lambda x: re.sub(
