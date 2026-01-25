@@ -13,6 +13,7 @@ import torch
 from datasets import load_dataset
 from pandas import DataFrame
 from torch.utils.data import Dataset
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 from core_utils.llm.llm_pipeline import AbstractLLMPipeline
 from core_utils.llm.metrics import Metrics
@@ -142,10 +143,7 @@ class TaskDataset(Dataset):
         Returns:
             tuple[str, ...]: The item to be received
         """
-        text = self._data.iloc[index]['source']
-        target = self._data.iloc[index]['target']
-
-        return (text, target)
+        return tuple(self._data.iloc[index])
 
     @property
     def data(self) -> DataFrame:
@@ -176,8 +174,13 @@ class LLMPipeline(AbstractLLMPipeline):
             batch_size (int): The size of the batch inside DataLoader
             device (str): The device for inference
         """
-
-
+        self._model_name = model_name
+        self._model = AutoModelForSequenceClassification.from_pretrained(model_name).to(device)
+        self._tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self._dataset = dataset
+        self._max_length = max_length
+        self._batch_size = batch_size
+        self._device = device
 
     def analyze_model(self) -> dict:
         """
@@ -186,6 +189,7 @@ class LLMPipeline(AbstractLLMPipeline):
         Returns:
             dict: Properties of a model
         """
+        
 
 
 
