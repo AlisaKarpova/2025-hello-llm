@@ -12,6 +12,7 @@ import re
 import torch
 from datasets import load_dataset
 from pandas import DataFrame
+from torchinfo import summary
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
@@ -143,7 +144,8 @@ class TaskDataset(Dataset):
         Returns:
             tuple[str, ...]: The item to be received
         """
-        return tuple(self._data.iloc[index])
+        row = self._data.iloc[index]
+        return (row['source'],)
 
     @property
     def data(self) -> DataFrame:
@@ -189,9 +191,26 @@ class LLMPipeline(AbstractLLMPipeline):
         Returns:
             dict: Properties of a model
         """
-        
+        config = self._model.config
+        ids = torch.ones(self._batch_size, self._max_length, dtype=torch.long)
+        tokens = {"input_ids": ids, "attention_mask": ids}
 
+        stats = summary(
+            self._model,
+            input_data=tokens,
+            device=self._device,
+            verbose=0
+        )
 
+        return {
+            "input_shape": list(stats.input_size["input_ids"]),
+            "embedding_size": config.emb_size,
+            "output_shape": stats.summary_list[-1].output_size,
+            "num_trainable_params": stats.trainable_params,
+            "vocab_size": config.vocab_size,
+            "size": stats.total_param_bytes,
+            "max_context_length": config.max_position_embeddings
+        }
 
     @report_time
     def infer_sample(self, sample: tuple[str, ...]) -> str | None:
@@ -204,6 +223,21 @@ class LLMPipeline(AbstractLLMPipeline):
         Returns:
             str | None: A prediction
         """
+        if self._model is None:
+            return None
+
+        tokens = self._tokenizer(sample[0], return_tensors="pt")
+
+        self._model.eval()
+
+        with torch.no_grad():
+            output = self._model(**tokens)
+
+        predictions = torch.argmax(output.logits).item()
+
+        labels = self._model.config.id2label
+
+        return labels[predictions]
 
     @report_time
     def infer_dataset(self) -> pd.DataFrame:
