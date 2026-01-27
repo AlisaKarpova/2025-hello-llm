@@ -199,8 +199,8 @@ class LLMPipeline(AbstractLLMPipeline):
             dict: Properties of a model
         """
         config = self._model.config
-        ids = torch.ones(self._batch_size, self._max_length, dtype=torch.long)
-        tokens = {"input_ids": ids, "attention_mask": ids}
+        input_ids = torch.ones((1, config.max_position_embeddings), dtype=torch.long)
+        tokens = {"input_ids": input_ids, "attention_mask": input_ids}
 
         stats = summary(
             self._model,
@@ -209,14 +209,18 @@ class LLMPipeline(AbstractLLMPipeline):
             verbose=0
         )
 
+        input_shape_dict = {}
+        for key, value in stats.input_size.items():
+            input_shape_dict[key] = list(value)
+
         return {
-            "input_shape": list(stats.input_size["input_ids"]),
-            "embedding_size": config.emb_size,
+            "input_shape": input_shape_dict,
+            "embedding_size": config.max_position_embeddings,
             "output_shape": stats.summary_list[-1].output_size,
             "num_trainable_params": stats.trainable_params,
             "vocab_size": config.vocab_size,
             "size": stats.total_param_bytes,
-            "max_context_length": config.max_position_embeddings
+            "max_context_length": config.max_length
         }
 
     @report_time
@@ -242,7 +246,8 @@ class LLMPipeline(AbstractLLMPipeline):
 
         predictions = torch.argmax(output.logits).item()
 
-        return predictions
+        return str(predictions)
+
 
     @report_time
     def infer_dataset(self) -> pd.DataFrame:
