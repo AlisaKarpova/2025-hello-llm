@@ -100,7 +100,8 @@ class RawDataPreprocessor(AbstractRawDataPreprocessor):
             (26,): 6
         }
         self._raw_data[ColumnNames.TARGET] = self._raw_data[ColumnNames.TARGET].apply(
-            lambda x: next((value for key, value in mapping_dict.items() if any(item in x for item in key)), 8)
+            lambda x: next((value for key, value in mapping_dict.items()
+                            if any(item in x for item in key)), 8)
         ).astype(int)
 
         self._raw_data = self._raw_data.query(f"{ColumnNames.TARGET} != 8").copy()
@@ -229,7 +230,7 @@ class LLMPipeline(AbstractLLMPipeline):
         for key, value in stats.input_size.items():
             input_shape_dict[key] = list(value)
 
-        return {
+        model_analysis = {
             "input_shape": input_shape_dict,
             "embedding_size": config.max_position_embeddings,
             "output_shape": stats.summary_list[-1].output_size,
@@ -238,6 +239,7 @@ class LLMPipeline(AbstractLLMPipeline):
             "size": stats.total_param_bytes,
             "max_context_length": config.max_length
         }
+        return model_analysis
 
     @report_time
     def infer_sample(self, sample: tuple[str, ...]) -> str | None:
