@@ -11,6 +11,7 @@ from typing import Iterable, Sequence
 import pandas as pd
 import torch
 from datasets import load_dataset
+from evaluate import load
 from pandas import DataFrame
 from torch.utils.data import DataLoader, Dataset
 from torchinfo import summary
@@ -234,7 +235,7 @@ class LLMPipeline(AbstractLLMPipeline):
         Returns:
             str | None: A prediction
         """
-        return str(self._infer_batch([sample])[0])
+        return self._infer_batch([sample])[0]
 
     @report_time
     def infer_dataset(self) -> pd.DataFrame:
@@ -245,19 +246,18 @@ class LLMPipeline(AbstractLLMPipeline):
             pd.DataFrame: Data with predictions
         """
         dataloader = DataLoader(batch_size=self._batch_size, dataset=self._dataset)
-        infered_df = pd.DataFrame(self._dataset.data)
-
         predictions = []
+        targets = []
 
         self._model.eval()
 
         for batch in dataloader:
             texts, labels = batch
             preds = self._infer_batch(texts)
+            targets.extend(labels.tolist())
             predictions.extend(preds)
-        infered_df[ColumnNames.PREDICTION] = predictions
 
-        return infered_df
+        return pd.DataFrame({"target": targets, "predictions": predictions})
 
     @torch.no_grad()
     def _infer_batch(self, sample_batch: Sequence[tuple[str, ...]]) -> list[str]:
@@ -286,7 +286,7 @@ class LLMPipeline(AbstractLLMPipeline):
             output = self._model(**tokens)
             predictions = torch.argmax(output.logits, dim=-1)
 
-            return predictions.tolist()
+        return [str(p.item()) for p in predictions]
 
 class TaskEvaluator(AbstractTaskEvaluator):
     """
@@ -311,3 +311,15 @@ class TaskEvaluator(AbstractTaskEvaluator):
         Returns:
             dict: A dictionary containing information about the calculated metric
         """
+
+        df = pd.read_csv(self._data_path)
+        predictions = df[ColumnNames.PREDICTION.value].tolist()
+        targets = df[ColumnNames.TARGET.value].tolist()
+
+        metric = str(self._metrics[0])
+        metric_evaluate = load(metric)
+        score = metric_evaluate.compute(predictions=predictions,
+                                    references=targets,
+                                    average="micro")
+
+        return score

@@ -8,7 +8,13 @@ from pathlib import Path
 
 from core_utils.llm.time_decorator import report_time
 from core_utils.project.lab_settings import LabSettings
-from lab_7_llm.main import LLMPipeline, RawDataImporter, RawDataPreprocessor, TaskDataset
+from lab_7_llm.main import (
+    LLMPipeline,
+    RawDataImporter,
+    RawDataPreprocessor,
+    TaskDataset,
+    TaskEvaluator,
+)
 
 
 @report_time
@@ -30,12 +36,22 @@ def main() -> None:
     data_preprocessor.transform()
     dataset = TaskDataset(data_preprocessor.data.head(100))
 
-    pipeline = LLMPipeline(settings.parameters.model, dataset,120, 1, 'cpu')
+    pipeline = LLMPipeline(settings.parameters.model, dataset,120, 64, 'cpu')
 
     for key, value in pipeline.analyze_model().items():
         print(f'{key} : {value}')
 
     print(pipeline.infer_sample(dataset[1]))
+    print(pipeline.infer_dataset())
+
+    predictions_df = pipeline.infer_dataset()
+
+    predictions_file = Path(__file__).parent / "predictions.csv"
+    predictions_df.to_csv(predictions_file)
+
+    evaluator = TaskEvaluator(predictions_file, settings.parameters.metrics)
+    result = evaluator.run()
+    print("Evaluation results:", result)
     assert result is not None, "Demo does not work correctly"
 
 
