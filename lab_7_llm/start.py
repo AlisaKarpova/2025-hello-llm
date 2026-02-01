@@ -48,7 +48,8 @@ def main() -> None:
 
     predictions_df = pipeline.infer_dataset()
 
-    predictions_file = Path(__file__).parent / "predictions.csv"
+    predictions_file = Path(__file__).parent / "dist" / "predictions.csv"
+    predictions_file.parent.mkdir()
     predictions_df.to_csv(predictions_file)
 
     evaluator = TaskEvaluator(predictions_file, settings.parameters.metrics)
