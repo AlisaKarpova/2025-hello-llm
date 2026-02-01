@@ -42,7 +42,6 @@ def main() -> None:
         print(f'{key} : {value}')
 
     print(pipeline.infer_sample(dataset[1]))
-    print(pipeline.infer_dataset())
 
     predictions_df = pipeline.infer_dataset()
 

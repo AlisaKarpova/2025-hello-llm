@@ -98,7 +98,9 @@ class RawDataPreprocessor(AbstractRawDataPreprocessor):
             .astype(int)
         )
 
-        self._raw_data.rename(columns={'labels': ColumnNames.TARGET, 'ru_text': ColumnNames.SOURCE}, inplace=True)
+        self._raw_data.rename(columns={'labels': ColumnNames.TARGET,
+                                       'ru_text': ColumnNames.SOURCE
+                                       }, inplace=True)
         self._raw_data = self._raw_data.query("target != 8")
 
         mapping_ordered = {
@@ -109,12 +111,17 @@ class RawDataPreprocessor(AbstractRawDataPreprocessor):
             6: 4,
             7: 5
         }
-        self._raw_data.loc[:, ColumnNames.TARGET] = self._raw_data[ColumnNames.TARGET].map(mapping_ordered)
+        self._raw_data.loc[:, ColumnNames.TARGET] = self._raw_data[
+            ColumnNames.TARGET
+        ].map(mapping_ordered)
 
-        self._raw_data.loc[:, ColumnNames.SOURCE] = self._raw_data[ColumnNames.SOURCE].apply(lambda x: re.sub(
-            r'[^\w\s]', '', x.strip())
-                                                                         )
-
+        self._raw_data.loc[:, ColumnNames.SOURCE] = self._raw_data[
+            ColumnNames.SOURCE
+        ].apply(lambda x: re.sub(
+            r'[^\w\s]',
+            '',
+            x.strip()
+        ))
 
         self._raw_data.reset_index(drop=True, inplace=True)
 
