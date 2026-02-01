@@ -13,6 +13,7 @@ import torch
 from datasets import load_dataset
 from evaluate import load
 from pandas import DataFrame
+from torch.nn import Module
 from torch.utils.data import DataLoader, Dataset
 from torchinfo import summary
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
@@ -78,30 +79,31 @@ class RawDataPreprocessor(AbstractRawDataPreprocessor):
         Apply preprocessing transformations to the raw dataset.
         """
         self._raw_data['labels'] = self._raw_data['labels'].apply(tuple)
+
         self._raw_data.drop(['id', 'text'], axis=1, inplace=True)
 
         exclude_values = {0, 4, 5, 6, 7, 8, 10, 12, 15, 18, 21, 22, 23}
+        self._raw_data['labels'] = self._raw_data['labels'].apply(
+            lambda x: tuple(v for v in x if v not in exclude_values)
+        )
+
+        self._raw_data.rename(columns={'labels': ColumnNames.TARGET,
+                                       'ru_text': ColumnNames.SOURCE
+                                       }, inplace=True)
 
         mapping_dict = {
             (1, 13, 17, 20): 1,
             (9, 16, 24, 25): 2,
             (14, 19): 3,
             (2, 3): 4,
-            27: 7,
-            26: 6
+            (27,): 7,
+            (26,): 6
         }
+        self._raw_data[ColumnNames.TARGET] = self._raw_data[ColumnNames.TARGET].apply(
+            lambda x: next((value for key, value in mapping_dict.items() if any(item in x for item in key)), 8)
+        ).astype(int)
 
-        self._raw_data.loc[:, 'labels'] = (
-            self._raw_data['labels']
-            .apply(lambda x: next((v for v in x if v not in exclude_values), None))
-            .map(lambda x: mapping_dict.get(x, 8))
-            .astype(int)
-        )
-
-        self._raw_data.rename(columns={'labels': ColumnNames.TARGET,
-                                       'ru_text': ColumnNames.SOURCE
-                                       }, inplace=True)
-        self._raw_data = self._raw_data.query("target != 8")
+        self._raw_data = self._raw_data.query(f"{ColumnNames.TARGET} != 8").copy()
 
         mapping_ordered = {
             1: 0,
@@ -111,11 +113,11 @@ class RawDataPreprocessor(AbstractRawDataPreprocessor):
             6: 4,
             7: 5
         }
-        self._raw_data[ColumnNames.TARGET.value] = self._raw_data[
+        self._raw_data[ColumnNames.TARGET] = self._raw_data[
             ColumnNames.TARGET
         ].map(mapping_ordered)
 
-        self._raw_data[ColumnNames.SOURCE.value] = self._raw_data[
+        self._raw_data[ColumnNames.SOURCE] = self._raw_data[
             ColumnNames.SOURCE
         ].apply(lambda x: re.sub(
             r'[^\w\s]',
@@ -213,12 +215,15 @@ class LLMPipeline(AbstractLLMPipeline):
         input_ids = torch.ones((1, config.max_position_embeddings), dtype=torch.long)
         tokens = {"input_ids": input_ids, "attention_mask": input_ids}
 
-        stats = summary(
-            self._model,
-            input_data=tokens,
-            device=self._device,
-            verbose=0
-        )
+        if isinstance(self._model, Module):
+            stats = summary(
+                self._model,
+                input_data=tokens,
+                device=self._device,
+                verbose=0
+            )
+        else:
+            print("The model has incompatible type")
 
         input_shape_dict = {}
         for key, value in stats.input_size.items():
