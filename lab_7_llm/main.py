@@ -216,21 +216,21 @@ class LLMPipeline(AbstractLLMPipeline):
         input_ids = torch.ones((1, config.max_position_embeddings), dtype=torch.long)
         tokens = {"input_ids": input_ids, "attention_mask": input_ids}
 
-        if isinstance(self._model, Module):
-            stats = summary(
-                self._model,
-                input_data=tokens,
-                device=self._device,
-                verbose=0
-            )
-        else:
-            print("The model has incompatible type")
+        if not isinstance(self._model, Module):
+            raise ValueError("The model has incompatible type")
+
+        stats = summary(
+            self._model,
+            input_data=tokens,
+            device=self._device,
+            verbose=0
+        )
 
         input_shape_dict = {}
         for key, value in stats.input_size.items():
             input_shape_dict[key] = list(value)
 
-        model_analysis = {
+        return {
             "input_shape": input_shape_dict,
             "embedding_size": config.max_position_embeddings,
             "output_shape": stats.summary_list[-1].output_size,
@@ -239,7 +239,6 @@ class LLMPipeline(AbstractLLMPipeline):
             "size": stats.total_param_bytes,
             "max_context_length": config.max_length
         }
-        return model_analysis
 
     @report_time
     def infer_sample(self, sample: tuple[str, ...]) -> str | None:
