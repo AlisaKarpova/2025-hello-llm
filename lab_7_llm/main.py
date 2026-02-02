@@ -334,13 +334,12 @@ class TaskEvaluator(AbstractTaskEvaluator):
         targets = df[ColumnNames.TARGET.value].tolist()
         result = {}
 
-        metric = str(list(self._metrics)[0])
-        metric_evaluate = load(metric)
-        score = metric_evaluate.compute(predictions=predictions,
+        for metric in self._metrics:
+            metric_evaluate = load(str(metric))
+            score = metric_evaluate.compute(predictions=predictions,
                                     references=targets,
                                     average="micro")
-
-        for key, value in score.items():
-            result[key] = value
+            for key, value in score.items():
+                result[key] = value
 
         return result
