@@ -163,7 +163,8 @@ class TaskDataset(Dataset):
         Returns:
             tuple[str, ...]: The item to be received
         """
-        return tuple(self._data.iloc[index])
+        row = self._data.iloc[index]
+        return row[ColumnNames.SOURCE], row[ColumnNames.TARGET]
 
     @property
     def data(self) -> DataFrame:
