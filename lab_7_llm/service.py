@@ -67,5 +67,4 @@ def infer(query: Query) -> dict:
 
     emotions = ["Радость", "Грусть", "Страх", "Злость", "Нейтрально", "Другое"]
 
-    if 0 <= result < len(emotions):
-        return {"infer": emotions[result]}
+    return {"infer": emotions[result]}
