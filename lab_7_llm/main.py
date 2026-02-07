@@ -87,8 +87,8 @@ class RawDataPreprocessor(AbstractRawDataPreprocessor):
             lambda x: tuple(v for v in x if v not in exclude_values)
         )
 
-        self._raw_data.rename(columns={'labels': ColumnNames.TARGET,
-                                       'ru_text': ColumnNames.SOURCE
+        self._raw_data.rename(columns={'labels': ColumnNames.TARGET.value,
+                                       'ru_text': ColumnNames.SOURCE.value
                                        }, inplace=True)
 
         mapping_dict = {
@@ -99,12 +99,12 @@ class RawDataPreprocessor(AbstractRawDataPreprocessor):
             (27,): 7,
             (26,): 6
         }
-        self._raw_data[ColumnNames.TARGET] = self._raw_data[ColumnNames.TARGET].apply(
+        self._raw_data[ColumnNames.TARGET.value] = self._raw_data[ColumnNames.TARGET.value].apply(
             lambda x: next((value for key, value in mapping_dict.items()
                             if any(item in x for item in key)), 8)
         ).astype(int)
 
-        self._raw_data = self._raw_data.query(f"{ColumnNames.TARGET} != 8").copy()
+        self._raw_data = self._raw_data.query(f"{ColumnNames.TARGET.value} != 8").copy()
 
         mapping_ordered = {
             1: 0,
@@ -114,12 +114,12 @@ class RawDataPreprocessor(AbstractRawDataPreprocessor):
             6: 4,
             7: 5
         }
-        self._raw_data[ColumnNames.TARGET] = self._raw_data[
-            ColumnNames.TARGET
+        self._raw_data[ColumnNames.TARGET.value] = self._raw_data[
+            ColumnNames.TARGET.value
         ].map(mapping_ordered)
 
-        self._raw_data[ColumnNames.SOURCE] = self._raw_data[
-            ColumnNames.SOURCE
+        self._raw_data[ColumnNames.SOURCE.value] = self._raw_data[
+            ColumnNames.SOURCE.value
         ].apply(lambda x: re.sub(
             r'[^\w\s]',
             '',
@@ -164,7 +164,7 @@ class TaskDataset(Dataset):
             tuple[str, ...]: The item to be received
         """
         row = self._data.iloc[index]
-        return row[ColumnNames.SOURCE], row[ColumnNames.TARGET]
+        return str(row[ColumnNames.SOURCE.value]), str(row[ColumnNames.TARGET.value])
 
     @property
     def data(self) -> DataFrame:
@@ -268,7 +268,7 @@ class LLMPipeline(AbstractLLMPipeline):
 
         for batch in dataloader:
             preds = self._infer_batch(batch[0])
-            targets.extend(batch[1].tolist())
+            targets.extend(batch[1])
             predictions.extend(preds)
 
         return pd.DataFrame({"target": targets, "predictions": predictions})
