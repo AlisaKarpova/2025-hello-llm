@@ -6,16 +6,17 @@ Fine-tuning Large Language Models for a downstream task.
 from pathlib import Path
 
 # pylint: disable=too-few-public-methods, undefined-variable, duplicate-code, unused-argument, too-many-arguments
-from typing import Callable, Iterable, Sequence
+from typing import Callable, cast, Iterable, Sequence
 
 import evaluate
 import pandas as pd
 import torch
 from datasets import load_dataset
 from pandas import DataFrame
+from peft import get_peft_model, LoraConfig, PeftConfig
 from torch.utils.data import DataLoader, Dataset
 from torchinfo import summary
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, Trainer, TrainingArguments
 
 from core_utils.llm.llm_pipeline import AbstractLLMPipeline
 from core_utils.llm.metrics import Metrics
@@ -188,9 +189,12 @@ class TokenizedTaskDataset(Dataset):
                 tokenize the dataset
             max_length (int): max length of a sequence
         """
-        self._data = data
-        self._tokenizer = AutoTokenizer.from_pretrained(tokenizer)
-        self._max_length = max_length
+        self._data = list(
+            data.apply(
+                lambda sample: tokenize_sample(sample, tokenizer, max_length),
+                axis=1
+            )
+        )
 
     def __len__(self) -> int:
         """
@@ -419,9 +423,44 @@ class SFTPipeline(AbstractSFTPipeline):
             data_collator (Callable[[AutoTokenizer], torch.Tensor] | None, optional): processing
                                                                     batch. Defaults to None.
         """
-
+        self._model_name = model_name
+        self._dataset = dataset
+        self._data_collator = data_collator
+        self._sft_params = sft_params
+        self._model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+        self._tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self._lora_config = LoraConfig(
+            r=sft_params.rank,
+            lora_alpha=sft_params.alpha,
+            lora_dropout=0.1,
+            target_modules=sft_params.target_modules
+        )
 
     def run(self) -> None:
         """
         Fine-tune model.
         """
+        model_with_lora = get_peft_model(self._model, cast(PeftConfig, self._lora_config))
+        finetuned_model_path = str(self._sft_params.finetuned_model_path)
+
+        training_args = TrainingArguments(
+            output_dir=str(finetuned_model_path),
+            per_device_train_batch_size=self._sft_params.batch_size,
+            max_steps=self._sft_params.max_fine_tuning_steps,
+            learning_rate=self._sft_params.learning_rate,
+            use_cpu=True,
+            save_strategy="no",
+            load_best_model_at_end=False,
+            remove_unused_columns=False
+        )
+
+        trainer = Trainer(
+            model=model_with_lora,
+            args=training_args,
+            train_dataset=self._dataset,
+        )
+        trainer.train()
+
+        merged_model = model_with_lora.merge_and_unload()
+        merged_model.save_pretrained(finetuned_model_path)
+        self._tokenizer.save_pretrained(finetuned_model_path)
