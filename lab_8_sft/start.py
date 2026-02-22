@@ -93,18 +93,18 @@ def main() -> None:
     for key, value in finetuned_pipeline.analyze_model().items():
         print(f'{key} : {value}')
 
-        print(finetuned_pipeline.infer_sample(dataset[0]))
+    print(finetuned_pipeline.infer_sample(dataset[0]))
 
-        finetuned_predictions = finetuned_pipeline.infer_dataset()
-        finetuned_predictions_file = Path(__file__).parent / "dist" / "predictions.csv"
-        finetuned_predictions_file.parent.mkdir(parents=True, exist_ok=True)
-        finetuned_predictions.to_csv(finetuned_predictions_file)
+    finetuned_predictions = finetuned_pipeline.infer_dataset()
+    finetuned_predictions_file = Path(__file__).parent / "dist" / "predictions.csv"
+    finetuned_predictions_file.parent.mkdir(parents=True, exist_ok=True)
+    finetuned_predictions.to_csv(finetuned_predictions_file)
 
-        evaluator = TaskEvaluator(finetuned_predictions_file, settings.parameters.metrics)
-        result = evaluator.run()
-        print("Evaluation results after fine-tuning:", result)
+    evaluator = TaskEvaluator(finetuned_predictions_file, settings.parameters.metrics)
+    result = evaluator.run()
+    print("Evaluation results after fine-tuning:", result)
 
-        assert result is not None, "Fine-tuning does not work correctly"
+    assert result is not None, "Fine-tuning does not work correctly"
 
 
 if __name__ == "__main__":

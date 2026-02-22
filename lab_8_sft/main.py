@@ -14,6 +14,7 @@ import torch
 from datasets import load_dataset
 from pandas import DataFrame
 from peft import get_peft_model, LoraConfig, PeftConfig
+from torch.nn import Module
 from torch.utils.data import DataLoader, Dataset
 from torchinfo import summary
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, Trainer, TrainingArguments
@@ -236,13 +237,9 @@ class LLMPipeline(AbstractLLMPipeline):
             batch_size (int): The size of the batch inside DataLoader.
             device (str): The device for inference.
         """
-        self._model_name = model_name
-        self._model = AutoModelForSeq2SeqLM.from_pretrained(model_name).to(device)
+        super().__init__(model_name, dataset, max_length, batch_size, device)
+        self._model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
         self._tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self._dataset = dataset
-        self._max_length = max_length
-        self._batch_size = batch_size
-        self._device = device
 
     def analyze_model(self) -> dict:
         """
@@ -267,6 +264,9 @@ class LLMPipeline(AbstractLLMPipeline):
             "decoder_input_ids": decoder_input_ids,
             "use_cache": False
         }
+
+        if not isinstance(self._model, Module):
+            raise ValueError("The model has incompatible type")
 
         model_stats = summary(
             self._model,
@@ -363,6 +363,7 @@ class TaskEvaluator(AbstractTaskEvaluator):
             data_path (pathlib.Path): Path to predictions
             metrics (Iterable[Metrics]): List of metrics to check
         """
+        super().__init__(data_path, metrics)
         self._data_path = data_path
         self._metrics = metrics
 
@@ -423,9 +424,7 @@ class SFTPipeline(AbstractSFTPipeline):
             data_collator (Callable[[AutoTokenizer], torch.Tensor] | None, optional): processing
                                                                     batch. Defaults to None.
         """
-        self._model_name = model_name
-        self._dataset = dataset
-        self._data_collator = data_collator
+        super().__init__(model_name, dataset, data_collator)
         self._sft_params = sft_params
         self._model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
         self._tokenizer = AutoTokenizer.from_pretrained(model_name)
