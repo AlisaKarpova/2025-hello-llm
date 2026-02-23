@@ -159,15 +159,16 @@ def tokenize_sample(
         sample[ColumnNames.SOURCE.value],
         padding="max_length",
         truncation=True,
-        max_length=120
+        max_length=max_length
     )
 
     target_tokens = tokenizer(
         sample[ColumnNames.TARGET.value],
         padding="max_length",
         truncation=True,
-        max_length=120
+        max_length=max_length
     )
+
     return {
         "input_ids": source_tokens["input_ids"],
         "attention_mask": source_tokens["attention_mask"],
