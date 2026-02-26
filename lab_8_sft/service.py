@@ -36,7 +36,7 @@ def init_application() -> tuple:
 
     settings = LabSettings(BASE_PATH / "settings.json")
     dataset = TaskDataset(pd.DataFrame())
-    pre_trained_pipeline = LLMPipeline(
+    model_pipeline = LLMPipeline(
         model_name=settings.parameters.model,
         dataset=dataset,
         max_length=120,
@@ -45,7 +45,7 @@ def init_application() -> tuple:
     )
 
     finetuned_model_path = Path(__file__).parent / "dist" / settings.parameters.model
-    fine_tuned_pipeline = LLMPipeline(
+    finetuned_pipeline = LLMPipeline(
         str(finetuned_model_path),
         dataset=dataset,
         max_length=120,
@@ -53,7 +53,7 @@ def init_application() -> tuple:
         device="cpu"
     )
 
-    return model_app, pre_trained_pipeline, fine_tuned_pipeline
+    return model_app, model_pipeline, finetuned_pipeline
 
 app, pre_trained_pipeline, fine_tuned_pipeline = init_application()
 app.mount("/assets", StaticFiles(directory=ASSETS_PATH), name="assets")
