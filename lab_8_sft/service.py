@@ -44,14 +44,17 @@ def init_application() -> tuple:
         device="cpu"
     )
 
-    finetuned_model_path = Path(__file__).parent / "dist" / settings.parameters.model
-    finetuned_pipeline = LLMPipeline(
-        str(finetuned_model_path),
-        dataset=dataset,
-        max_length=120,
-        batch_size=1,
-        device="cpu"
-    )
+    finetuned_model_path = BASE_PATH / "dist" / settings.parameters.model
+    if finetuned_model_path.exists():
+        finetuned_pipeline = LLMPipeline(
+            str(finetuned_model_path),
+            dataset=dataset,
+            max_length=120,
+            batch_size=1,
+            device="cpu"
+        )
+    else:
+        finetuned_pipeline = model_pipeline
 
     return model_app, model_pipeline, finetuned_pipeline
 
